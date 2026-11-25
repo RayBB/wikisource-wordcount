@@ -6,6 +6,35 @@ wikitext from the public API, applies fixed rules and returns the count, plus th
 counted, so the number can be cited (for example as Wikidata's "number of words", P6570, with "determination
 method" stated).
 
+**Try it:** https://raybb.github.io/wikisource-wordcount/
+
+## What is counted
+
+| Counted | Not counted |
+|---|---|
+| The text of the work, as it reads on the page | Titles, bylines, headings and "Continued on page…" lines |
+| Footnotes (also reported separately) | Illustrator credits, captions and images |
+| Verse, including centred or right-aligned lines inside `<poem>` | Signatures and dates at the foot of a letter or story |
+| Words in tables | Running heads, page numbers and anything else outside the work's section |
+| Hyphenated words and contractions, as one word each | Dashes and ellipses on their own |
+
+## How it works
+
+1. **Find the text.** It reads the work's page on Wikisource and its `<pages>` tags, which say which scan pages
+   (and which sections of them) make up the work.
+2. **Fetch the scan pages.** It gets their wikitext from the public Wikisource API, in batches of up to 50.
+3. **Reduce it to plain text.** Fixed rules (below) remove markup, templates and the parts listed under "Not
+   counted", keeping the words a reader sees.
+4. **Count.** A word is anything between spaces or dashes that contains a letter or digit.
+5. **Report.** It returns the count, how many of those words are in footnotes, and `ok` or `unchecked`. Each
+   result also records the work-page revision, the time of the latest scan-page edit and a fingerprint (SHA-256)
+   of the text, so a count can be cited and checked later.
+
+A result is `unchecked` when the tool met something its rules don't cover, such as a template it doesn't know. It
+still gives its best count, but you should look before citing it.
+
+## Ways to run it
+
 One TypeScript core (`src/core.ts`) is compiled to three entry points:
 
 | Entry | File | How to run |
