@@ -36,6 +36,12 @@ Known limits: titles and captions must be centred/right-aligned blocks to be exc
 return an error; a work split into chapter subpages has to be counted per subpage; editorial text inside the work's
 section (e.g. a magazine's introduction to a reprinted poem) is counted.
 
+## Related
+
+[Prosesize](https://prosesize.toolforge.org) counts readable prose on Wikimedia wikis but returns 0 for
+Wikisource works built with `<pages>`, because their paragraphs sit inside the ProofreadPage output rather than
+directly under the page's sections. Reported as [T446117](https://phabricator.wikimedia.org/T446117).
+
 ## Development
 
 ```
