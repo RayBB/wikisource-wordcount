@@ -1,5 +1,5 @@
 /**
- * ws-wordcount core: a deterministic word count for a Wikisource work that is transcluded from scan pages
+ * wikisource-wordcount core: a deterministic word count for a Wikisource work that is transcluded from scan pages
  * with ProofreadPage's <pages> tag. Runs anywhere `fetch` exists (Node 18+, browsers, Wikisource gadgets).
  *
  * Rules (applied to the wikitext of every transcluded Page: page, in order):
@@ -16,7 +16,7 @@
  *     So hyphenated compounds and contractions are one word; dashes and ". . ." are not words.
  */
 
-export const METHOD = 'ws-wordcount';
+export const METHOD = 'wikisource-wordcount';
 export const VERSION = '1.0';
 export const RULES =
   'section text only; centred/right-aligned blocks, images and noinclude dropped; ' +

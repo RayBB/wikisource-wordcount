@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   // src/core.ts
-  var METHOD = "ws-wordcount";
+  var METHOD = "wikisource-wordcount";
   var VERSION = "1.0";
   var RULES = "section text only; centred/right-aligned blocks, images and noinclude dropped; words split on whitespace and em/en dashes; a word contains a letter or digit";
   var DEFAULT_API = "https://en.wikisource.org/w/api.php";

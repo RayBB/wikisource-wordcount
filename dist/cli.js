@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // src/core.ts
-var METHOD = "ws-wordcount";
+var METHOD = "wikisource-wordcount";
 var VERSION = "1.0";
 var RULES = "section text only; centred/right-aligned blocks, images and noinclude dropped; words split on whitespace and em/en dashes; a word contains a letter or digit";
 var DEFAULT_API = "https://en.wikisource.org/w/api.php";
@@ -179,8 +179,8 @@ function formatResult(r) {
 }
 
 // src/cli.ts
-var USAGE = `Usage: ws-wordcount [--json] <Wikisource URL or page title> [...]
-  e.g. ws-wordcount https://en.wikisource.org/wiki/The_Saturday_Evening_Post/Charcoal`;
+var USAGE = `Usage: node dist/cli.js [--json] <Wikisource URL or page title> [...]
+  e.g. node dist/cli.js https://en.wikisource.org/wiki/The_Saturday_Evening_Post/Charcoal`;
 async function main() {
   const argv = process.argv.slice(2);
   const json = argv.includes("--json");

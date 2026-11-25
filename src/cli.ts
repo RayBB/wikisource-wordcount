@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { count, formatResult, isError } from './core.js';
 
-const USAGE = `Usage: ws-wordcount [--json] <Wikisource URL or page title> [...]
-  e.g. ws-wordcount https://en.wikisource.org/wiki/The_Saturday_Evening_Post/Charcoal`;
+const USAGE = `Usage: node dist/cli.js [--json] <Wikisource URL or page title> [...]
+  e.g. node dist/cli.js https://en.wikisource.org/wiki/The_Saturday_Evening_Post/Charcoal`;
 
 async function main(): Promise<number> {
   const argv = process.argv.slice(2);

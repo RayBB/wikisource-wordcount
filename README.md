@@ -1,4 +1,4 @@
-# ws-wordcount
+# wikisource-wordcount
 
 A deterministic word count for Wikisource works that are transcluded from scan pages with ProofreadPage's
 `<pages>` tag. Give it a Wikisource URL (or page title); it reads the work's `<pages>` tags, fetches the scan pages'
