@@ -46,17 +46,33 @@
     }
     return attrs;
   }
-  function selectPages(attrs) {
+  function selectPages(attrs, pageCount) {
     const set = /* @__PURE__ */ new Set();
-    if (attrs.from || attrs.to) {
-      const from = parseInt(attrs.from ?? attrs.to, 10);
-      const to = parseInt(attrs.to ?? attrs.from, 10);
+    const unhandled = [];
+    const num = (k) => {
+      if (attrs[k] === void 0 || attrs[k] === "") return void 0;
+      if (!/^\s*\d+\s*$/.test(attrs[k])) {
+        unhandled.push(`${k}=${attrs[k]}`);
+        return void 0;
+      }
+      return parseInt(attrs[k], 10);
+    };
+    const fromN = num("from");
+    const toN = num("to");
+    if (attrs.from !== void 0 || attrs.to !== void 0) {
+      const from = fromN ?? 1;
+      let to = toN;
+      if (to === void 0 && attrs.to === void 0) {
+        if (pageCount) to = pageCount;
+        else unhandled.push("to (page count of the scan unknown)");
+      }
       const step = Math.max(1, parseInt(attrs.step ?? "1", 10) || 1);
-      for (let n = from; n <= to; n += step) set.add(n);
+      if (to !== void 0 && (fromN !== void 0 || attrs.from === void 0)) {
+        for (let n = from; n <= to; n += step) set.add(n);
+      }
     }
     if (attrs.include) expandInclude(attrs.include).forEach((n) => set.add(n));
     if (attrs.exclude) expandInclude(attrs.exclude).forEach((n) => set.delete(n));
-    const unhandled = [];
     return {
       pages: [...set].sort((a, b) => a - b),
       onlysection: attrs.onlysection || void 0,
@@ -82,14 +98,27 @@
     if (open) s += `<section end="${open}" />`;
     return s;
   }
-  var secTag = (kind, name) => new RegExp(`<section\\s+${kind}\\s*=\\s*(?:"${escapeRegExp(name)}"|'${escapeRegExp(name)}'|${escapeRegExp(name)})\\s*/?>`, "i");
+  var secTag = (kind, name, flags = "") => new RegExp(
+    `<[Ss][Ee][Cc][Tt][Ii][Oo][Nn]\\s+${kind.replace(/./g, (c) => `[${c}${c.toUpperCase()}]`)}\\s*=\\s*(?:"${escapeRegExp(name)}"|'${escapeRegExp(name)}'|${escapeRegExp(name)}(?=[\\s/>]))\\s*/?>`,
+    flags
+  );
   function selectSection(t, sel) {
     if (sel.only) {
-      const b = secTag("begin", sel.only).exec(t);
-      if (!b) return "";
-      const rest = t.slice(b.index + b[0].length);
-      const e = secTag("end", sel.only).exec(rest);
-      return e ? rest.slice(0, e.index) : rest;
+      const parts = [];
+      let rest = t;
+      for (; ; ) {
+        const b = secTag("begin", sel.only).exec(rest);
+        if (!b) break;
+        rest = rest.slice(b.index + b[0].length);
+        const e = secTag("end", sel.only).exec(rest);
+        if (!e) {
+          parts.push(rest);
+          break;
+        }
+        parts.push(rest.slice(0, e.index));
+        rest = rest.slice(e.index + e[0].length);
+      }
+      return parts.join("\n");
     }
     if (sel.from) {
       const b = secTag("begin", sel.from).exec(t);
@@ -116,8 +145,6 @@
     "fit",
     "fim",
     "missing image",
-    "float right",
-    "right",
     "ts",
     "clear",
     "clear left",
@@ -137,7 +164,6 @@
     "brace",
     "brace2",
     "img float",
-    "ppoem/end",
     "pps2",
     "defaultsort",
     "header",
@@ -154,6 +180,7 @@
       "sc",
       "small-caps",
       "smallcaps",
+      "small caps",
       "larger",
       "large",
       "x-larger",
@@ -173,13 +200,13 @@
       "i",
       "italic",
       "fine",
+      "fine block",
       "t1",
       "t2",
       "t3",
       "t4",
       "t5",
       "t6",
-      "fine block",
       "fs70",
       "fs75",
       "fs80",
@@ -191,123 +218,236 @@
       "fs120",
       "fs125",
       "hi",
+      "hi/s",
       "hanging indent",
       "sp",
       "spaced",
       "nowrap",
+      "nobr",
       "u",
       "underline",
       "overline",
       "block center",
       "block centre",
+      "block left",
       "ppoem",
       "left",
       "right block",
       "smaller block",
       "larger block",
       "x-larger block",
-      "fs",
-      "font-size",
       "sup",
       "sub",
       "ditto",
       "sic",
       "lps",
-      "hi/s",
       "gothic",
       "blackletter",
       "red",
-      "color",
-      "nobr",
       "span",
-      "block left",
       "indent",
-      "pad",
-      "em dash",
       "quote",
       "blockquote",
-      "small caps",
-      "ls",
-      "letter-spacing",
-      "hws",
-      "hyphenated word start",
-      "tiret",
       "cl-act-h",
       "csc",
-      "roman"
+      "roman",
+      "float right",
+      "right",
+      "li",
+      "largeinitial",
+      "large initial"
     ].map((n) => [n, 1]),
-    ["lang", 2],
-    ["hws", 2],
-    ["hyphenated word start", 2],
-    ["tiret", 2],
-    ["font-size", 2],
-    ["fs", 2],
-    ["color", 2],
-    ["red", 1],
-    ["pad", 2],
-    ["letter-spacing", 2],
-    ["ls", 2]
+    ["dent", 3],
+    ...["lang", "hws", "hyphenated word start", "tiret", "font-size", "fs", "color", "pad", "letter-spacing", "ls"].map((n) => [n, 2])
   ]);
   var LITERAL = {
     "'": "'",
     '"': '"',
     longdash: "\u2014",
+    "long dash": "\u2014",
     "\u2014": "\u2014",
     "em dash": "\u2014",
+    mdash: "\u2014",
     "en dash": "\u2013",
     ndash: "\u2013",
-    mdash: "\u2014",
     "...": "...",
     "\u2026": "\u2026",
-    "long dash": "\u2014",
     mme: "Mme",
     mlle: "Mlle",
     mmes: "Mmes",
     mlles: "Mlles",
     mgr: "Mgr",
-    "ier": "Ier",
+    ier: "Ier",
+    "m.": "M.",
+    "mm.": "MM.",
     "!": "|",
     "=": "="
   };
+  var JOIN = /* @__PURE__ */ new Set(["roi", "souverain", "pape", "empereur"]);
+  var OPTION_PARAMS = /* @__PURE__ */ new Set([
+    "style",
+    "class",
+    "width",
+    "height",
+    "align",
+    "float",
+    "size",
+    "lang",
+    "dir",
+    "id",
+    "file",
+    "image",
+    "caption",
+    "alt",
+    "link",
+    "upright",
+    "start",
+    "end",
+    "margin",
+    "indent",
+    "top",
+    "bottom",
+    "left",
+    "right",
+    "font",
+    "color",
+    "colour",
+    "display",
+    "type",
+    "title",
+    "cstyle",
+    "tstyle",
+    "pstyle",
+    "imgstyle",
+    "max-width",
+    "line-height",
+    "pad",
+    "padding",
+    "pos",
+    "position",
+    "num",
+    "anchor",
+    "border",
+    "brace",
+    "sep",
+    "name",
+    "format",
+    "mode",
+    "source",
+    "ref"
+  ]);
   var DROP_TAG_CONTENT = /<(math|score|syntaxhighlight|timeline|graph|chem|ce|templatestyles|mapframe|gallery)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+  var PIPE = "";
+  var EQ = "";
+  var shield = (s) => s.replace(/\|/g, PIPE).replace(/=/g, EQ);
+  var unshield = (s) => s.replace(/\u0001/g, "|").replace(/\u0002/g, "=");
   function splitArgs(inner) {
     const parts = inner.split("|");
-    const name = parts[0].trim().replace(/_/g, " ").toLowerCase().replace(/^template:/, "");
+    let name = parts[0].trim().replace(/_/g, " ").toLowerCase().replace(/^template:/, "");
+    if (name.startsWith("#")) name = name.split(":")[0];
     const unnamed = [];
+    let text;
     for (const p of parts.slice(1)) {
-      if (/^\s*[\w -]+\s*=/.test(p) && !/^\s*\d+\s*=/.test(p)) continue;
-      unnamed.push(p.replace(/^\s*\d+\s*=/, ""));
+      const m = /^\s*([^=]{1,40}?)\s*=([\s\S]*)$/.exec(p);
+      if (m) {
+        const key = m[1].toLowerCase();
+        if (/^\d+$/.test(key)) unnamed[parseInt(key, 10) - 1] = m[2];
+        else if (key === "text" || key === "content") text = m[2];
+        else if (!OPTION_PARAMS.has(key)) unnamed.push(p);
+        continue;
+      }
+      unnamed.push(p);
     }
-    return { name, unnamed };
+    return { name, unnamed: unnamed.filter((x) => x !== void 0), text };
   }
   function reduceTemplates(t, unknown) {
     const inner = /\{\{(?!\{)((?:(?!\{\{|\}\})[\s\S])*?)\}\}/g;
     for (let guard = 0; guard < 50 && t.includes("{{"); guard++) {
       const before = t;
       t = t.replace(inner, (_m, body) => {
-        const { name, unnamed } = splitArgs(body);
-        if (DROP_TEMPLATES.has(name) || /\/(s|e|start|end)$/.test(name)) return "";
-        if (name in LITERAL) return LITERAL[name];
-        if (name in WRAPPERS) return unnamed[WRAPPERS[name] - 1] ?? unnamed[0] ?? "";
-        unknown.add(name);
-        return unnamed[0] ?? "";
+        const { name, unnamed, text } = splitArgs(body);
+        let out;
+        if (DROP_TEMPLATES.has(name) || /\/(s|e|start|end)$/.test(name)) out = "";
+        else if (name in LITERAL) out = LITERAL[name];
+        else if (JOIN.has(name)) out = unnamed.join(" ");
+        else if (name in WRAPPERS) out = unnamed[WRAPPERS[name] - 1] ?? text ?? unnamed[0] ?? "";
+        else {
+          unknown.add(name);
+          out = text ?? unnamed.reduce((a, b) => b.trim().length > a.trim().length ? b : a, "");
+        }
+        return shield(out);
       });
       if (t === before) break;
     }
-    return t;
+    return unshield(t);
   }
-  var balanced = (line) => (line.match(/\{\{/g) ?? []).length === (line.match(/\}\}/g) ?? []).length;
-  var DROP_LINE = /^\s*(\{\{\s*(?:c|center|centre|smaller|float right|right)\s*\|.*\}\}|\[\[(?:File|Image):.*\]\])\s*$/i;
+  var DROP_LINE_TEMPLATES = /* @__PURE__ */ new Set(["c", "center", "centre", "smaller", "float right", "right"]);
+  function isDropLine(line) {
+    const s = line.trim();
+    const open = s.startsWith("{{") ? "{{" : s.startsWith("[[") ? "[[" : "";
+    if (!open) return false;
+    const close = open === "{{" ? "}}" : "]]";
+    let depth = 0;
+    for (let i = 0; i < s.length - 1; i++) {
+      const two = s.slice(i, i + 2);
+      if (two === open) {
+        depth++;
+        i++;
+      } else if (two === close) {
+        depth--;
+        i++;
+        if (depth === 0) {
+          if (s.slice(i + 1).trim() !== "") return false;
+          break;
+        }
+      }
+    }
+    if (depth !== 0) return false;
+    if (open === "[[") return /^\[\[\s*(file|image)\s*:/i.test(s);
+    const name = /^\{\{\s*([^|}]+?)\s*[|}]/.exec(s)?.[1].toLowerCase().replace(/_/g, " ") ?? "";
+    return DROP_LINE_TEMPLATES.has(name) && s.includes("|");
+  }
+  var NO_TEXT = /\{\{\s*(?:nop|dhr|dhr2|gap|clear|anchor)\s*(?:\|[^{}]*)?\}\}/gi;
+  function dropTrailingRight(line) {
+    const m = /\{\{\s*(?:float right|right)\s*\|/i.exec(line);
+    if (!m) return line;
+    let start2 = -1;
+    for (const mm of line.matchAll(/\{\{\s*(?:float right|right)\s*\|/gi)) start2 = mm.index;
+    let depth = 0;
+    for (let i = start2; i < line.length - 1; i++) {
+      const two = line.slice(i, i + 2);
+      if (two === "{{") {
+        depth++;
+        i++;
+      } else if (two === "}}") {
+        depth--;
+        i++;
+        if (depth === 0) return line.slice(i + 1).trim() === "" ? line.slice(0, start2) : line;
+      }
+    }
+    return line;
+  }
+  function linesWithPoem(t) {
+    let inPoem = false;
+    return t.split("\n").map((line) => {
+      const startsIn = inPoem;
+      const opens = (line.match(/<poem\b/gi) ?? []).length;
+      const closes = (line.match(/<\/poem\s*>/gi) ?? []).length;
+      if (opens > closes) inPoem = true;
+      else if (closes > opens) inPoem = false;
+      return { line, poem: startsIn || opens > 0 };
+    });
+  }
   function cleanText(t, unknown) {
     const notes = [];
+    t = linesWithPoem(t).filter(({ line, poem }) => poem || !isDropLine(line.replace(/<ref\b[^>]*\/>|<ref\b[^>]*>[\s\S]*?<\/ref\s*>/gi, "").replace(NO_TEXT, ""))).map(({ line, poem }) => poem ? line : dropTrailingRight(line)).join("\n");
     t = t.replace(/<ref\b[^>]*\/>/gi, "");
     t = t.replace(/<ref\b[^>]*>([\s\S]*?)<\/ref\s*>/gi, (_m, n) => {
       notes.push(n);
       return " ";
     });
     t = t.replace(/<references\b[^>]*\/>|<references\b[^>]*>[\s\S]*?<\/references\s*>/gi, "");
-    const run = (s, dropLines) => {
-      if (dropLines) s = s.split("\n").filter((line) => !(DROP_LINE.test(line) && balanced(line))).join("\n");
+    const run = (s) => {
       s = s.replace(DROP_TAG_CONTENT, " ");
       s = reduceLinks(s);
       s = reduceTemplates(s, unknown);
@@ -316,16 +456,21 @@
       s = s.replace(/'''''|'''|''/g, "");
       return decodeEntities(s);
     };
-    return { body: run(t, true), notes: run(notes.join("\n"), false) };
+    return { body: run(t), notes: run(notes.join("\n")) };
   }
   function reduceLinks(t) {
     for (let guard = 0; guard < 10 && t.includes("[["); guard++) {
       const before = t;
       t = t.replace(/\[\[([^\[\]]*)\]\]/g, (_m, body) => {
-        const target = body.split("|")[0].trim();
-        if (/^:?\s*(file|image|category|media)\s*:/i.test(target)) return "";
-        const parts = body.split("|");
-        return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
+        const bar = body.indexOf("|");
+        const target = (bar < 0 ? body : body.slice(0, bar)).trim();
+        if (/^\s*(file|image|category|media)\s*:/i.test(target)) return "";
+        if (bar < 0) return target.replace(/^:/, "");
+        const label = body.slice(bar + 1);
+        if (label.trim() === "") {
+          return target.replace(/^:/, "").replace(/^[^:]*:/, "").replace(/\s*\([^)]*\)\s*$/, "");
+        }
+        return label.trim();
       });
       if (t === before) break;
     }
@@ -385,8 +530,9 @@
     });
   }
   function countWords(text) {
-    return text.split(/[\s—–]+/u).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    return text.split(/[\s​—–]+/u).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
   }
+  var SPACELESS_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}\p{Script=Tibetan}]/u;
   function pageText(wikitext, sel, unknown = /* @__PURE__ */ new Set()) {
     const s = typeof sel === "string" ? { only: sel } : sel ?? {};
     let t = wikitext.replace(/<noinclude>[\s\S]*?<\/noinclude>/gi, "").replace(/<!--[\s\S]*?-->/g, "");
@@ -424,15 +570,25 @@
     const out = /* @__PURE__ */ new Map();
     for (let i = 0; i < titles.length; i += 50) {
       const batch = titles.slice(i, i + 50);
-      const r = await apiGet(api, { action: "query", prop: "revisions", rvprop: "content", rvslots: "main", titles: batch.join("|") }, opts);
+      const r = await apiGet(api, { action: "query", prop: "revisions", rvprop: "content|ids|timestamp", rvslots: "main", titles: batch.join("|") }, opts);
       const norm = new Map((r.query.normalized ?? []).map((n) => [n.to, n.from]));
       for (const p of r.query.pages) {
-        const content = p.revisions?.[0]?.slots?.main?.content;
-        if (content !== void 0) out.set(norm.get(p.title) ?? p.title, content);
+        const rv = p.revisions?.[0];
+        const content = rv?.slots?.main?.content;
+        if (content !== void 0) out.set(norm.get(p.title) ?? p.title, { content, revid: rv.revid, timestamp: rv.timestamp });
       }
       if (i + 50 < titles.length) await sleep(1e3);
     }
     return out;
+  }
+  async function scanPageCount(api, index, opts) {
+    const r = await apiGet(api, { action: "query", prop: "imageinfo", iiprop: "size", titles: `File:${index}` }, opts);
+    const n = r.query.pages?.[0]?.imageinfo?.[0]?.pagecount;
+    return typeof n === "number" ? n : void 0;
+  }
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
   }
   async function count(target, opts = {}) {
     const { api, title } = parseTarget(target);
@@ -450,14 +606,16 @@
     let scanPages = 0;
     const unknown = /* @__PURE__ */ new Set();
     const badAttrs = /* @__PURE__ */ new Set();
+    let latest;
     for (const tag of tags) {
       const attrs = parsePagesAttrs(tag);
-      const sel = selectPages(attrs);
-      sel.unhandled.forEach((a) => badAttrs.add(a));
       if (!attrs.index) {
         badAttrs.add("(no index)");
         continue;
       }
+      const needCount = attrs.from !== void 0 && attrs.to === void 0;
+      const sel = selectPages(attrs, needCount ? await scanPageCount(api, attrs.index, opts) : void 0);
+      sel.unhandled.forEach((a) => badAttrs.add(a));
       const names = sel.pages.map((n) => `Page:${attrs.index}/${n}`);
       const texts = await wikitexts(api, names, opts);
       names.forEach((name, i) => {
@@ -466,25 +624,32 @@
           from: i === 0 ? sel.fromsection : void 0,
           to: i === names.length - 1 ? sel.tosection : void 0
         };
-        const pt = pageText(texts.get(name) ?? "", s, unknown);
+        const pr = texts.get(name);
+        if (pr && (!latest || pr.timestamp > latest.timestamp)) latest = pr;
+        const pt = pageText(pr?.content ?? "", s, unknown);
         body += "\n" + pt.body;
         notes += "\n" + pt.notes;
         scanPages++;
       });
     }
     const footnoteWords = countWords(notes);
+    const warnings = [];
+    if (SPACELESS_SCRIPT.test(body + notes)) warnings.push("text in a script written without spaces (e.g. Chinese, Japanese, Thai): the count is not meaningful");
     const host = new URL(api).hostname;
     return {
       title: main,
       url: `https://${host}/wiki/${encodeURI(main.replace(/ /g, "_"))}`,
       words: countWords(body) + footnoteWords,
       footnoteWords,
-      status: unknown.size || badAttrs.size ? "unchecked" : "ok",
+      status: unknown.size || badAttrs.size || warnings.length ? "unchecked" : "ok",
       unhandledTemplates: [...unknown].sort(),
       unhandledAttributes: [...badAttrs].sort(),
+      warnings,
       scanPages,
       revision: rev.revid,
       revisionTimestamp: rev.timestamp,
+      scanPagesLatestEdit: latest?.timestamp ?? "",
+      textSha256: await sha256(body + "\0" + notes),
       method: METHOD,
       version: VERSION,
       rules: RULES
@@ -497,12 +662,14 @@
     if (isError(r)) return `${r.title}: ERROR - ${r.error}`;
     const fn = r.footnoteWords ? `, of which ${r.footnoteWords.toLocaleString("en-US")} in footnotes` : "";
     let s = `${r.title}
-  ${r.words.toLocaleString("en-US")} words${fn}  (${r.status}; ${r.scanPages} scan pages; revision ${r.revision} of ${r.revisionTimestamp})
+  ${r.words.toLocaleString("en-US")} words${fn}  (${r.status}; ${r.scanPages} scan pages; work page revision ${r.revision}; scan pages last edited ${r.scanPagesLatestEdit})
   method: ${r.method} ${r.version}`;
     if (r.unhandledTemplates.length) s += `
   UNHANDLED TEMPLATES: ${r.unhandledTemplates.join(", ")}`;
     if (r.unhandledAttributes.length) s += `
   UNHANDLED <pages> ATTRIBUTES: ${r.unhandledAttributes.join(", ")}`;
+    for (const w of r.warnings) s += `
+  WARNING: ${w}`;
     return s;
   }
 

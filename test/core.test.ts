@@ -11,6 +11,8 @@ import {
   reduceLinks,
   reduceTables,
   reduceTemplates,
+  isDropLine,
+  SPACELESS_SCRIPT,
   selectPages,
   selectSection,
 } from '../src/core.ts';
@@ -117,4 +119,76 @@ test('countWords: compounds and contractions are one word; dashes and ellipses a
 
 test('signatures in {{float right}} and {{dhr}} spacing are not counted', () => {
   assert.equal(words("Last words. {{float right|—''M. Stoneman'', '08.}}\n{{dhr|2em}}").body, 2);
+});
+
+// Findings from the v1.1 code review
+test('from alone runs to the end of the scan, to alone starts at page 1; non-numeric values are reported', () => {
+  assert.deepEqual(selectPages({ index: 'x', from: '5' }, 7).pages, [5, 6, 7]);
+  assert.deepEqual(selectPages({ index: 'x', to: '3' }).pages, [1, 2, 3]);
+  assert.deepEqual(selectPages({ index: 'x', from: '5' }).unhandled, ['to (page count of the scan unknown)']);
+  assert.deepEqual(selectPages({ index: 'x', from: 'iv', to: 'ix' }).unhandled, ['from=iv', 'to=ix']);
+});
+
+test('a "|" produced by an inner template does not split the outer template', () => {
+  assert.equal(countWords(reduceTemplates('x {{larger|a {{!}} b c}}', new Set())), 4);
+});
+
+test('text that looks like key=value, and named text= arguments, are kept', () => {
+  assert.equal(countWords(reduceTemplates('{{larger|E=mc now}}', new Set())), 2);
+  assert.equal(countWords(reduceTemplates('{{ppoem|text=one two three}} {{blockquote|text=a b c}}', new Set())), 6);
+  assert.equal(countWords(reduceTemplates('{{c|style=color:red|kept words}}', new Set())), 2);
+});
+
+test('a line is dropped only if one centred template spans all of it', () => {
+  assert.equal(isDropLine('{{c|a b}} middle words {{c|c d}}'), false);
+  assert.equal(isDropLine('{{c|{{x-larger|TITLE}}}}'), true);
+  assert.equal(isDropLine('{{center|{{larger|open'), false);
+  assert.equal(words('{{c|a b}} middle words {{c|c d}}').body, 6);
+});
+
+test('onlysection joins every block with that name; section names are case-sensitive', () => {
+  const p = '<section begin="a"/>x1<section end="a"/> mid <section begin="a"/>x2<section end="a"/> <section begin="A"/>no<section end="A"/>';
+  assert.equal(countWords(selectSection(p, { only: 'a' })), 2);
+});
+
+test('zero-width spaces separate words; scripts without spaces are detected', () => {
+  assert.equal(countWords('a\u200Bb c'), 3);
+  assert.equal(SPACELESS_SCRIPT.test('日本語の文章です'), true);
+  assert.equal(SPACELESS_SCRIPT.test('plain English'), false);
+});
+
+test('links: pipe trick, extra pipes and visible category links', () => {
+  assert.equal(reduceLinks('[[w:Foo (bar)|]]'), 'Foo');
+  assert.equal(reduceLinks('[[a|b|c]]'), 'b|c');
+  assert.equal(reduceLinks('[[:Category:X]]'), 'Category:X');
+});
+
+test('parser functions are reported by name only', () => {
+  const unknown = new Set<string>();
+  reduceTemplates('{{#if:x|yes there|no}}', unknown);
+  assert.deepEqual([...unknown], ['#if']);
+});
+
+test('a footnote on a dropped caption line is dropped with it', () => {
+  const r = words('{{c|A caption}}<ref>n1 n2</ref>\nBody text.');
+  assert.equal(r.notes, 0);
+});
+
+test('a caption line followed by {{nop}} is still a caption line', () => {
+  assert.equal(words("{{center|'''''A Long Caption Here'''''}}{{nop}}\nBody text.").body, 2);
+});
+
+// Findings from the v1.1 field test
+test('verse refrains in {{float right}} are counted; a signature ending a paragraph is not', () => {
+  assert.equal(words('Quoth the Raven, {{float right|Only this and nothing more.}}<br>\nNext line here.').body, 11);
+  assert.equal(words("Last words. {{float right|—''M. Stoneman'', '08.}}").body, 2);
+  assert.equal(words('<poem>\n{{c|A centred verse line}}\nand more\n</poem>').body, 6);
+});
+
+test('dent, largeinitial, French M. and roi; unknown templates keep their longest argument', () => {
+  const u = new Set<string>();
+  assert.equal(reduceTemplates('{{dent|2em|0em|the indented text}}', u).trim(), 'the indented text');
+  assert.equal(reduceTemplates('{{li|T}}he {{M.}} {{MM.}} {{roi|Charles|X}}', u).trim(), 'The M. MM. Charles X');
+  assert.equal(reduceTemplates('{{usstatsidenote2|L|A marginal note here}}', u).trim(), 'A marginal note here');
+  assert.deepEqual([...u], ['usstatsidenote2']);
 });

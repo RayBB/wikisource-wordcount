@@ -20,31 +20,40 @@ themselves with the `Api-User-Agent` header.
 ## Rules (version 1.1)
 
 **Which text.** The scan pages and sections are chosen exactly as the `<pages>` tag chooses them: `from`..`to`
-(every `step`-th page), plus `include`, minus `exclude`; `onlysection` on every page, `fromsection` on the first page
-and `tosection` on the last. Sections can be marked with `<section begin/end>` or `## name ##`. Other attributes only
-fill in the generated header box, so they are ignored.
+(every `step`-th page; a missing `from` is page 1 and a missing `to` the last page of the scan), plus `include`,
+minus `exclude`; `onlysection` on every page (every block with that name), `fromsection` on the first page and
+`tosection` on the last. Sections can be marked with `<section begin/end>` or `## name ##`; names are
+case-sensitive. Other attributes only fill in the generated header box, so they are ignored.
 
 Then, on each page, in order:
 
 1. Drop `<noinclude>` and HTML comments; keep only the selected section text.
 2. **Footnotes** (`<ref>…</ref>`) are counted: they are part of the printed text. Their words are included in
    `words` and also reported on their own as `footnoteWords`.
-3. Drop whole lines that are only a centred or right-aligned block (`{{c}}`, `{{center}}`, `{{right}}`,
-   `{{float right}}`, `{{smaller}}`) - title, byline, signature, illustrator credit, captions, "Continued" notes.
+3. Drop whole lines that are only one centred or right-aligned block (`{{c}}`, `{{center}}`, `{{right}}`,
+   `{{float right}}`, `{{smaller}}`; spacing templates such as `{{nop}}` on the line are ignored) - title, byline,
+   heading, signature, illustrator credit, captions, "Continued" notes - except inside `<poem>`, where such lines are
+   verse. A `{{float right}}`/`{{right}}` block that ends a line with no line break after it (a signature or date at
+   the foot of a paragraph) is dropped too; elsewhere, e.g. verse refrains, its text is kept.
    Images (`{{FI}}`, `{{FIS}}`, `{{missing image}}`, `[[File:...]]`) and their captions are dropped wherever they are.
 4. Links show their text (`[[a|b]]` -> b); files and categories are dropped.
 5. Templates are reduced innermost first: spacing, rules, anchors, images and signatures are dropped; hyphenation
    templates count the word once (`{{hws|a|b}}` -> b, `{{hwe}}` -> ""); formatting wrappers keep their text.
-   **Any other template keeps its first unnamed argument, is reported, and makes the result `unchecked`.**
+   **Any other template keeps its longest argument (its text, rather than a size or flag), is reported, and makes
+   the result `unchecked`.**
 6. HTML tags are removed with their content kept, table markup is reduced to cell text, `''`/`'''` are removed and
    HTML entities are decoded.
-7. Count words: split on whitespace and em/en dashes; a token is a word if it contains a letter or digit (any script).
-   Hyphenated compounds and contractions are one word; dashes and `. . .` are not words.
+7. Count words: split on whitespace (including zero-width spaces) and em/en dashes; a token is a word if it contains
+   a letter or digit (any script). Hyphenated compounds and contractions are one word; dashes and `. . .` are not
+   words. Text in a script written without spaces (Chinese, Japanese, Thai...) makes the result `unchecked`.
+
+Each result also records the revision of the work's page, the time of the latest edit to any counted scan page, and
+a SHA-256 of the exact text counted, so two counts can be compared.
 
 Known limits:
-- Anything set as a centred line is not counted. That is what keeps titles, bylines and captions out, but it also
-  leaves out text that a work sets centred for other reasons, such as speaker names in some plays (about 3% of
-  *Riders to the Sea*) or centred verse.
+- Anything set as a centred line outside `<poem>` is not counted. That is what keeps titles, bylines, headings and
+  captions out, but it also leaves out text that a work sets centred for other reasons, such as speaker names in
+  some plays (about 3% of *Riders to the Sea*).
 - Figure captions are not counted.
 - Editorial text inside the work's section (e.g. a magazine's introduction to a reprinted poem) is counted.
 - Works not built with `<pages>` return an error; a work split into chapter subpages is counted per subpage.
@@ -64,5 +73,8 @@ npm test          # offline unit tests for the rules
 npm run build     # writes dist/cli.js, dist/web.js, dist/gadget.js
 ```
 
-Checked against an independent Python implementation of the same rules on 15 works (all identical), and against
-Prosesize's whitespace counting of `.prp-pages-output > p` (identical on prose without dashes; within 0.6% otherwise).
+Version 1.1 was checked by two independent reviews: a code review, and field tests on 41 works (Saturday Evening
+Post stories, novels, poems, plays, letters, speeches, statutes, encyclopedia and magazine articles, works with
+footnotes and tables, and works on French, German and Italian Wikisource), each compared with a count made by hand
+from the rendered page. Results marked `ok` agreed within 0.4%; larger differences came only with `unchecked`
+results (unknown templates) or the documented limits above.
