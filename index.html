@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wikisource Word Count</title>
+<style>
+:root { --bg: #fbfbf8; --fg: #1f2421; --muted: #5d6762; --line: #d7dcd8; --accent: #2f5f8a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #141716; --fg: #e5ebe7; --muted: #9aa6a0; --line: #2d3431; --accent: #8db8e0; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+p { color: var(--muted); margin: 0 0 20px; }
+form { display: flex; gap: 8px; flex-wrap: wrap; }
+input { flex: 1 1 320px; min-width: 0; padding: 10px 12px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; }
+button { padding: 10px 18px; font: inherit; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; }
+button:disabled { opacity: .6; cursor: progress; }
+pre { margin-top: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; word-break: break-word; font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Wikisource word count</h1>
+<p>Paste the URL of a Wikisource work that is transcluded from scan pages (built with the <code>&lt;pages&gt;</code> tag). Everything runs in your browser against the public Wikisource API.</p>
+<form id="form">
+<input id="target" type="text" placeholder="https://en.wikisource.org/wiki/The_Saturday_Evening_Post/Charcoal" aria-label="Wikisource URL or page title">
+<button type="submit">Count</button>
+</form>
+<pre id="out"></pre>
+</main>
+<script src="dist/web.js"></script>
+</body>
+</html>
